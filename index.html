@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CineMatch AI Blog</title>
+<meta name="description" content="CineMatch AI: a BCA Data Mining project that recommends movies using K-Means clustering and Apriori association rules.">
+<style>html,body{margin:0}</style>
+
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout concept: a long-form project write-up. Sticky contents rail beside a numbered article,
+   same dark green system as the portfolio. */
+:root{
+  color-scheme: dark;
+  --bg:#0a0d0b; --surface:#111613; --surface-2:#161c18;
+  --line:#1e2722; --line-2:#2b382f;
+  --fg:#e9efeb; --text:#c5cfc9; --muted:#8f9b94; --faint:#5b665f;
+  --accent:#4fd98a; --accent-ink:#04120a; --accent-soft:rgba(79,217,138,.12);
+  --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --f-body:'Hanken Grotesk','Segoe UI',system-ui,sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{
+  background:var(--bg);color:var(--text);font:400 17px/1.75 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:0 0;overflow-x:hidden;
+}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:90;background:var(--bg)}
+::selection{background:var(--accent);color:var(--accent-ink)}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+.container{max-width:1160px;margin:0 auto}
+.bg-grid{position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:56px 56px;opacity:.3;
+  -webkit-mask-image:radial-gradient(ellipse at 50% 0%,#000 0%,transparent 70%);mask-image:radial-gradient(ellipse at 50% 0%,#000 0%,transparent 70%)}
+.progress{position:fixed;top:env(safe-area-inset-top,0px);left:0;height:2px;width:100%;z-index:95;background:var(--accent);transform-origin:0 50%;transform:scaleX(0)}
+
+/* top bar */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 0 0}
+.logo{display:flex;align-items:center;gap:10px;font:700 1rem var(--f-display)}
+.logo b{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font:800 .85rem var(--f-display)}
+.bar a.back{font:500 .8rem var(--f-mono);color:var(--muted);padding:7px 13px;border:1px solid var(--line-2);border-radius:10px;transition:color .2s,border-color .2s}
+.bar a.back:hover{color:var(--accent);border-color:var(--accent)}
+
+/* header */
+.head{padding:clamp(40px,7vw,84px) 0 0;max-width:900px}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.tags li{padding:5px 12px;border:1px solid var(--line-2);border-radius:99px;font:500 .76rem var(--f-mono);color:var(--muted);background:var(--surface)}
+.tags li:first-child{color:var(--accent);border-color:rgba(79,217,138,.35)}
+.eyebrow{margin:26px 0 0;font:500 .85rem var(--f-mono);color:var(--accent)}
+h1{margin:10px 0 0;font:800 clamp(2.3rem,6.2vw,4.4rem)/1.02 var(--f-display);letter-spacing:-.035em;color:var(--fg);text-wrap:balance}
+.sum{margin:22px 0 0;font-size:1.2rem;color:var(--text);max-width:58ch}
+.by{margin:26px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;color:var(--muted);font-size:.95rem}
+.by strong{color:var(--fg);font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:11px;font-weight:600;font-size:.92rem;border:1px solid var(--line-2);background:var(--surface);color:var(--fg);transition:transform .2s,border-color .2s,color .2s}
+.btn:hover{transform:translateY(-2px);border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{color:var(--accent-ink);filter:brightness(1.08)}
+.btn.ph{border-style:dashed}
+.links{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+
+/* layout */
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:clamp(32px,6vw,72px);margin-top:clamp(44px,6vw,72px);align-items:start}
+.rail{position:sticky;top:calc(env(safe-area-inset-top,0px) + 24px);display:grid;gap:18px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
+.box h2{margin:0 0 12px;font:500 .76rem var(--f-mono);color:var(--faint);letter-spacing:.05em;text-transform:uppercase}
+.toc{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.toc a{display:flex;gap:10px;padding:6px 10px;margin:0 -10px;border-radius:8px;font-size:.92rem;color:var(--muted);transition:color .2s,background .2s}
+.toc a span{font:400 .74rem/1.9 var(--f-mono);color:var(--faint)}
+.toc a:hover{color:var(--fg);background:var(--surface-2)}
+.toc a.on{color:var(--accent);background:var(--accent-soft)}
+.toc a.on span{color:var(--accent)}
+dl.det{margin:0;display:grid;gap:12px}
+.det div{display:grid;gap:1px}
+.det dt{font:400 .72rem var(--f-mono);color:var(--faint)}
+.det dd{margin:0;font-size:.92rem;color:var(--fg)}
+
+/* article */
+article{min-width:0}
+section{padding-top:clamp(36px,5vw,56px)}
+section:first-child{padding-top:0}
+h2.sec{margin:0 0 18px;display:flex;align-items:baseline;gap:14px;font:700 clamp(1.6rem,3.4vw,2.2rem)/1.15 var(--f-display);letter-spacing:-.02em;color:var(--fg)}
+h2.sec .n{font:500 .85rem var(--f-mono);color:var(--accent)}
+article p{margin:0 0 1.1em;max-width:68ch}
+article p strong,article li strong{color:var(--fg);font-weight:600}
+h3{margin:1.6em 0 .5em;font:700 1.2rem var(--f-display);color:var(--fg);letter-spacing:-.01em}
+ul.list{margin:0 0 1.2em;padding:0;list-style:none;display:grid;gap:8px;max-width:68ch}
+ul.list li{position:relative;padding-left:22px}
+ul.list li::before{content:"";position:absolute;left:2px;top:.72em;width:7px;height:7px;border-radius:2px;background:var(--accent)}
+.nw{white-space:nowrap}
+code{font:500 .88em var(--f-mono);background:var(--surface-2);border:1px solid var(--line);padding:1px 7px;border-radius:6px;color:var(--accent)}
+.note{margin:1.4em 0;padding:16px 20px;border-left:3px solid var(--accent);background:var(--surface);border-radius:0 12px 12px 0;max-width:68ch}
+.note b{display:block;font:500 .76rem var(--f-mono);color:var(--accent);margin-bottom:4px;letter-spacing:.04em}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 1.2em;padding:0;list-style:none}
+.chips li{padding:7px 14px;border:1px solid var(--line-2);border-radius:99px;font-size:.92rem;background:var(--surface);color:var(--fg)}
+
+/* workflow */
+.steps{list-style:none;margin:1.4em 0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.steps li{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;position:relative;transition:border-color .25s,transform .25s}
+.steps li:hover{border-color:var(--accent);transform:translateY(-3px)}
+.steps .k{font:500 .74rem var(--f-mono);color:var(--accent)}
+.steps h3{margin:.4em 0 .3em;font-size:1.15rem}
+.steps p{margin:0;font-size:.92rem;line-height:1.55;color:var(--muted)}
+
+/* results */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:1.4em 0}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px}
+.stat b{display:block;font:800 clamp(1.5rem,3vw,2rem)/1.1 var(--f-display);color:var(--fg);letter-spacing:-.02em}
+.stat span{display:block;margin-top:6px;font-size:.84rem;line-height:1.4;color:var(--muted)}
+.chart{margin:1.2em 0 1.6em;padding:22px;background:var(--surface);border:1px solid var(--line);border-radius:16px;max-width:760px}
+.chart h4{margin:0 0 16px;font:500 .8rem var(--f-mono);color:var(--muted)}
+.cb{display:grid;grid-template-columns:minmax(90px,170px) minmax(0,1fr) auto;align-items:center;gap:12px;padding:6px 0;font-size:.88rem}
+.cb .l{color:var(--fg);line-height:1.3}
+.cb .l small{display:block;color:var(--faint);font:400 .7rem var(--f-mono)}
+.cb .t{height:12px;background:var(--bg);border-radius:6px;overflow:hidden}
+.cb .t i{display:block;height:100%;width:var(--w);background:linear-gradient(90deg,rgba(79,217,138,.35),var(--accent));border-radius:6px;transform-origin:0 50%;animation:grow 1s cubic-bezier(.2,.8,.2,1) both}
+.cb .v{font:500 .8rem var(--f-mono);color:var(--muted);min-width:3.2em;text-align:right}
+@keyframes grow{from{transform:scaleX(.02)}}
+.tw{overflow-x:auto;margin:1.2em 0 1.6em;border:1px solid var(--line);border-radius:14px;max-width:100%}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:.92rem}
+th,td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:500 .74rem var(--f-mono);color:var(--faint);background:var(--surface);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td{color:var(--text)}
+td.num{font-family:var(--f-mono);font-size:.86rem;color:var(--fg);white-space:nowrap}
+
+/* footer */
+footer{margin-top:clamp(56px,8vw,96px);padding-block:28px calc(34px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);display:grid;gap:14px;color:var(--muted);font-size:.92rem}
+footer .row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px}
+footer p{margin:0;max-width:70ch;color:var(--faint);font-size:.86rem;line-height:1.6}
+.toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;pointer-events:none;z-index:100;max-width:calc(100% - 32px);padding:11px 18px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line-2);font-size:.9rem;color:var(--fg);transition:opacity .25s,transform .25s}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:980px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .rail{position:static;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+  .steps,.stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:620px){
+  body{font-size:16.5px}
+  .rail{grid-template-columns:minmax(0,1fr)}
+  .steps,.stats{grid-template-columns:minmax(0,1fr)}
+  .cb{grid-template-columns:minmax(0,1fr) auto}
+  .cb .t{grid-column:1/-1;order:3}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+</style>
+
+
+</head>
+<body>
+<div class="bg-grid" aria-hidden="true"></div>
+<div class="progress" id="progress" aria-hidden="true"></div>
+
+<div class="container">
+  <div class="bar">
+    <a class="logo" href="#top" aria-label="CineMatch AI blog"><b>CM</b><span>CineMatch AI</span></a>
+    <a class="back" href="#" id="portfolioLink">← Portfolio</a>
+  </div>
+
+  <header class="head" id="top">
+    <ul class="tags"><li>Student project blog</li><li>Data Mining</li><li>Movie recommendation</li></ul>
+    <p class="eyebrow">BCA Data Mining project · MovieLens dataset</p>
+    <h1>CineMatch AI: Recommending Movies with <span class="nw">K-Means</span> and Apriori</h1>
+    <p class="sum">How a Python app groups similar movies and finds the movies people like together, using 100,836 real ratings.</p>
+    <div class="by"><span>By <strong>Danish Gupta</strong>, BCA student, Chandigarh University</span></div>
+    <div class="links">
+      <a class="btn primary" href="#" data-link="repo">Source code ↗</a>
+      <a class="btn" href="#" data-link="profile">GitHub profile ↗</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="rail" aria-label="Article navigation">
+      <nav class="box">
+        <h2>In this article</h2>
+        <ol class="toc" id="toc" style="list-style:none;margin:0;padding:0">
+          <li><a href="#introduction"><span>01</span>Introduction</a></li>
+          <li><a href="#problem"><span>02</span>Problem statement</a></li>
+          <li><a href="#objectives"><span>03</span>Objectives</a></li>
+          <li><a href="#dataset"><span>04</span>Dataset</a></li>
+          <li><a href="#methods"><span>05</span>Methods</a></li>
+          <li><a href="#tools"><span>06</span>Tools</a></li>
+          <li><a href="#workflow"><span>07</span>Workflow</a></li>
+          <li><a href="#results"><span>08</span>Results</a></li>
+          <li><a href="#limitations"><span>09</span>Limitations</a></li>
+          <li><a href="#conclusion"><span>10</span>Conclusion</a></li>
+        </ol>
+      </nav>
+      <div class="box">
+        <h2>Project details</h2>
+        <dl class="det">
+          <div><dt>Type</dt><dd>Individual BCA Data Mining project</dd></div>
+          <div><dt>Domain</dt><dd>Movies and entertainment</dd></div>
+          <div><dt>Interface</dt><dd>Streamlit web app</dd></div>
+          <div><dt>Data source</dt><dd>MovieLens latest-small (GroupLens)</dd></div>
+        </dl>
+      </div>
+    </aside>
+
+    <article>
+      <section id="introduction">
+        <h2 class="sec"><span class="n">01</span>Introduction</h2>
+        <p>CineMatch AI is a movie recommendation app. It uses two data mining techniques, <strong><span class="nw">K-Means</span> clustering</strong> and <strong>Apriori association rules</strong>, to suggest movies from real user ratings.</p>
+        <p>I built it for my BCA Data Mining project in Python. A Streamlit web interface lets anyone search movies, explore the analysis and get recommendations without logging in.</p>
+      </section>
+
+      <section id="problem">
+        <h2 class="sec"><span class="n">02</span>Problem statement</h2>
+        <p>There are thousands of movies to choose from, and picking one takes time. People usually rely on a friend's advice or on one overall rating, and neither says much about <em>their own</em> taste.</p>
+        <p>This project asks two questions. Which movies are similar to each other? Which movies do the same people tend to like together? Both can be answered from rating data.</p>
+      </section>
+
+      <section id="objectives">
+        <h2 class="sec"><span class="n">03</span>Objectives</h2>
+        <ul class="list">
+          <li>Clean and prepare real movie-rating data with Pandas.</li>
+          <li>Group similar movies with <span class="nw">K-Means</span>, and choose the number of groups with the Elbow Method and silhouette score.</li>
+          <li>Find movies liked together with Apriori, measured by support, confidence and lift.</li>
+          <li>Turn both results into working recommendations in an interactive web app.</li>
+        </ul>
+      </section>
+
+      <section id="dataset">
+        <h2 class="sec"><span class="n">04</span>Dataset</h2>
+        <p>I used the <strong>MovieLens latest-small</strong> dataset from GroupLens Research. It contains 9,742 movies, 100,836 ratings from 610 users, 19 genres, and ratings from 1996 to 2018. The files used are <code>movies.csv</code>, <code>ratings.csv</code> and <code>tags.csv</code>.</p>
+        <p>Preparation steps: removing duplicate and missing records, keeping a user's latest rating when a movie was rated twice, reading the release year from each title, splitting genres into a list, and calculating each movie's average rating and number of ratings.</p>
+        <div class="note"><b>DATASET NOTE</b>All results in this article come from real MovieLens ratings. No data was simulated. The dataset ends in 2018, so recent movies are not included.</div>
+      </section>
+
+      <section id="methods">
+        <h2 class="sec"><span class="n">05</span>Methods</h2>
+        <h3><span class="nw">K-Means</span> clustering</h3>
+        <ul class="list">
+          <li>Each movie with at least 10 ratings (2,269 movies) is described by 22 numbers: average rating, number of ratings, release year and one 0/1 column per genre.</li>
+          <li>StandardScaler puts all features on the same scale, so the year does not outweigh the genres.</li>
+          <li><span class="nw">K-Means</span> was run for k = 2 to 10. The Elbow Method (inertia) and the silhouette score guided the choice of k = 6.</li>
+          <li>To recommend, the app finds the chosen movie's cluster and ranks the movies in it by distance.</li>
+        </ul>
+        <h3>Apriori association rules</h3>
+        <ul class="list">
+          <li>Each user is one basket. A movie goes into the basket only if the user rated it <strong>4.0 or higher</strong>.</li>
+          <li>Only movies with at least 50 ratings are used, which gives 598 users and 450 movies.</li>
+          <li><strong>Support</strong> is the share of users who liked every movie in the rule. <strong>Confidence</strong> is how often the "then" movie is liked by users who liked the "if" movies. <strong>Lift</strong> compares that with chance, and above 1 means the movies go together.</li>
+        </ul>
+      </section>
+
+      <section id="tools">
+        <h2 class="sec"><span class="n">06</span>Tools</h2>
+        <ul class="chips"><li>Python</li><li>Pandas</li><li>NumPy</li><li>Scikit-learn</li><li>Mlxtend</li><li>Plotly</li><li>Streamlit</li><li>VS Code</li></ul>
+        <p>Pandas prepares the data, Scikit-learn runs <span class="nw">K-Means</span>, Mlxtend runs Apriori, Plotly draws the interactive charts and Streamlit builds the web interface. The CSV files act as the database.</p>
+      </section>
+
+      <section id="workflow">
+        <h2 class="sec"><span class="n">07</span>Workflow</h2>
+        <ol class="steps">
+          <li><span class="k">STEP 1</span><h3>Load</h3><p>Read movies, ratings and tags from the CSV files.</p></li>
+          <li><span class="k">STEP 2</span><h3>Prepare</h3><p>Clean the records, merge movies with ratings and build features and user baskets.</p></li>
+          <li><span class="k">STEP 3</span><h3>Mine</h3><p>Run <span class="nw">K-Means</span> on the movie features and Apriori on the baskets.</p></li>
+          <li><span class="k">STEP 4</span><h3>Present</h3><p>Show recommendations, charts and tables in the Streamlit app.</p></li>
+        </ol>
+        <p>The app has seven pages: Home, Explore Movies, Recommendations, <span class="nw">K-Means</span> Analysis, Apriori Analysis, Data Insights and About.</p>
+      </section>
+
+      <section id="results">
+        <h2 class="sec"><span class="n">08</span>Results</h2>
+        <div class="stats">
+          <div class="stat"><b>2,269</b><span>movies grouped into 6 clusters</span></div>
+          <div class="stat"><b>0.17</b><span>silhouette score for k = 6</span></div>
+          <div class="stat"><b>319</b><span>association rules from 598 users</span></div>
+          <div class="stat"><b>4.16</b><span>highest lift among the rules</span></div>
+        </div>
+
+        <h3><span class="nw">K-Means</span>: six groups of movies</h3>
+        <div class="chart" role="img" aria-label="Number of movies in each of the six clusters: 1165, 551, 209, 169, 155 and 20">
+          <h4>Movies per cluster (k = 6)</h4>
+          <div class="cb"><div class="l">Drama, Comedy, Romance<small>cluster 1</small></div><div class="t"><i style="--w:100%"></i></div><div class="v">1,165</div></div>
+          <div class="cb"><div class="l">Action, Adventure, Thriller<small>cluster 0</small></div><div class="t"><i style="--w:47.3%"></i></div><div class="v">551</div></div>
+          <div class="cb"><div class="l">Children, Animation, Adventure<small>cluster 2</small></div><div class="t"><i style="--w:17.9%"></i></div><div class="v">209</div></div>
+          <div class="cb"><div class="l">Horror, Thriller, Sci-Fi<small>cluster 5</small></div><div class="t"><i style="--w:14.5%"></i></div><div class="v">169</div></div>
+          <div class="cb"><div class="l">Mystery, Thriller, Drama<small>cluster 3</small></div><div class="t"><i style="--w:13.3%"></i></div><div class="v">155</div></div>
+          <div class="cb"><div class="l">Documentary, Comedy, Drama<small>cluster 4</small></div><div class="t"><i style="--w:1.7%"></i></div><div class="v">20</div></div>
+        </div>
+        <p>For Toy Story, the closest movies in its cluster are Monsters, Inc., Toy Story 2, The Emperor's New Groove, Antz, Shrek and Finding Nemo.</p>
+
+        <h3>Apriori: movies liked together</h3>
+        <p>With minimum support 0.12 and minimum confidence 0.6, Apriori found 389 frequent itemsets and 319 rules, with lift between 1.32 and 4.16. The strongest rules are the Lord of the Rings films, which makes sense.</p>
+        <div class="tw"><table>
+          <thead><tr><th>If a user likes</th><th>They also like</th><th>Support</th><th>Confidence</th><th>Lift</th></tr></thead>
+          <tbody>
+            <tr><td>The Shawshank Redemption + The Two Towers</td><td>The Return of the King</td><td class="num">0.122</td><td class="num">0.973</td><td class="num">4.16</td></tr>
+            <tr><td>The Matrix + The Two Towers</td><td>The Return of the King</td><td class="num">0.135</td><td class="num">0.953</td><td class="num">4.07</td></tr>
+            <tr><td>The Fellowship of the Ring + The Two Towers</td><td>The Return of the King</td><td class="num">0.177</td><td class="num">0.946</td><td class="num">4.04</td></tr>
+          </tbody>
+        </table></div>
+        <p>Star Wars: A New Hope also leads to The Empire Strikes Back (confidence 0.72, lift 2.55).</p>
+      </section>
+
+      <section id="limitations">
+        <h2 class="sec"><span class="n">09</span>Limitations</h2>
+        <ul class="list">
+          <li><strong>Small, older data:</strong> 610 users, ratings only until 2018.</li>
+          <li><strong>Overlapping clusters:</strong> a silhouette score of 0.17 is low, because many movies share genres. The clusters are approximate.</li>
+          <li><strong>Popular movies only:</strong> Apriori uses movies with at least 50 ratings, so rare movies get no rules. Toy Story, for example, has none with the default settings.</li>
+          <li><strong>Association is not cause:</strong> a rule shows movies are liked together, not why.</li>
+          <li><strong>No personal accounts:</strong> recommendations are not tailored to one user, and their accuracy was not measured.</li>
+        </ul>
+      </section>
+
+      <section id="conclusion">
+        <h2 class="sec"><span class="n">10</span>Conclusion</h2>
+        <p>CineMatch AI shows that two basic data mining methods can turn rating data into useful movie suggestions. <span class="nw">K-Means</span> finds movies that are alike, and Apriori finds movies that people enjoy together.</p>
+        <p>The main lessons were that careful data preparation matters as much as the algorithms, and that weak results, such as a low silhouette score, should be reported honestly. Next steps are collaborative filtering, using the tags as extra information, trying the larger MovieLens datasets and measuring recommendation quality.</p>
+      </section>
+    </article>
+  </div>
+
+  <footer>
+    <div class="row">
+      <a class="btn" href="#" data-link="repo">View the repository ↗</a>
+      <a class="btn" href="#top">Back to top ↑</a>
+    </div>
+    <p>© <span id="yr"></span> Danish Gupta. Educational project for a BCA Data Mining course. Results use the MovieLens dataset and are demonstrations, not a production recommender.</p>
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ============ EDIT YOUR LINKS HERE ============ */
+const CONFIG = {
+  repo:      "https://github.com/Craftedcode623/CineMatch-AI-Movie-Recommendation-System-Using-K-Means-Clustering-and-Association-Rule-Mining",
+  profile:   "https://github.com/Craftedcode623",
+  portfolio: "https://craftedcode623.github.io/"
+};
+/* ============================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+let toastT;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+
+function wire(el, url, label){
+  if (url) { el.href = url; el.target = '_blank'; el.rel = 'noopener noreferrer'; }
+  else { el.href = '#'; el.classList.add('ph'); el.title = 'Link not added yet';
+    el.addEventListener('click', e => { e.preventDefault(); toast('Add your ' + label + ' link in the CONFIG block at the bottom of the file.'); }); }
+}
+$$('[data-link]').forEach(a => wire(a, CONFIG[a.dataset.link], a.dataset.link === 'repo' ? 'repository' : 'GitHub profile'));
+wire($('#portfolioLink'), CONFIG.portfolio, 'portfolio');
+
+/* progress bar and table-of-contents highlight */
+const bar = $('#progress');
+function onScroll(){ const h = document.documentElement.scrollHeight - innerHeight; bar.style.transform = 'scaleX(' + (h > 0 ? Math.min(1, scrollY / h) : 0) + ')'; }
+addEventListener('scroll', onScroll, { passive: true }); onScroll();
+const toc = $$('#toc a');
+if ('IntersectionObserver' in window) {
+  const spy = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) toc.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + e.target.id));
+  }), { rootMargin: '-20% 0px -70% 0px' });
+  $$('article section').forEach(s => spy.observe(s));
+}
+$('#yr').textContent = new Date().getFullYear();
+</script>
+
+</body>
+</html>
